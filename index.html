@@ -131,34 +131,6 @@
     </div>
 
     <!-- ========================================== -->
-    <!-- POP-UP DE DOWNSELL (EXIT INTENT / SAÍDA)   -->
-    <!-- ========================================== -->
-    <div id="downsell-popup" class="fixed inset-0 bg-black/80 z-[110] hidden flex items-center justify-center p-4 backdrop-blur-md opacity-0 transition-opacity duration-300">
-        <div class="bg-white w-full max-w-sm rounded-3xl p-6 text-center text-of-dark shadow-2xl transform scale-95 transition-transform duration-300 relative" id="downsell-popup-content">
-            <div class="w-16 h-16 bg-red-100 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4 text-2xl font-black">
-                🔥
-            </div>
-            <h3 class="font-black text-xl mb-2">¡ESPERA AMOR! 🥺</h3>
-            <p class="text-xs text-of-gray mb-4">No te vayas con las ganas... Te activo el <strong class="text-of-blue">PACK BÁSICO por solo $50 MXN</strong> ahora mismo para que hablemos al instante.</p>
-            
-            <div class="bg-of-bg border border-of-border rounded-xl p-3 mb-5 text-left">
-                <div class="flex justify-between items-center text-xs font-bold text-gray-700">
-                    <span>Pack Básico (7 Archivos)</span>
-                    <span class="text-red-500 line-through">$120 MXN</span>
-                </div>
-                <div class="text-2xl font-black text-of-blue mt-1">$50.00 MXN</div>
-            </div>
-
-            <button onclick="closeDownsellPopup(); openModal('checkoutModal', 'Pack Básico (Downsell)', 5000);" class="w-full bg-of-blue hover:bg-of-blue-hover text-white font-black py-3.5 rounded-xl text-sm shadow-lg uppercase tracking-wide mb-3">
-                ¡QUIERO LA OFERTA SECRETA! 😈
-            </button>
-            <button onclick="closeDownsellPopup()" class="text-xs text-gray-400 font-medium hover:text-gray-600">
-                No, gracias, prefiero perder la promo
-            </button>
-        </div>
-    </div>
-
-    <!-- ========================================== -->
     <!-- VISTA 1: INSTAGRAM PERFIL PUBLICO          -->
     <!-- ========================================== -->
     <div id="vista-ig" class="flex flex-col min-h-screen bg-ig-bg w-full relative">
@@ -548,7 +520,8 @@
             </div>
 
             <!-- Video Player (Fullscreen object-cover) -->
-            <video id="story-video" class="w-full h-full object-cover" playsinline preload="auto"></video>
+            <video id="story-video" class="w-full h-full object-cover hidden" playsinline preload="auto"></video>
+            <img id="story-image" class="w-full h-full object-cover hidden" src="" />
             
             <!-- Link Sticker Realista (Posição de 20%) -->
             <div onclick="closeVideo(); abrirLanding();" class="absolute bottom-[22%] left-1/2 -translate-x-1/2 bg-white/95 backdrop-blur-md text-black font-bold py-2.5 px-4 rounded-xl shadow-[0_4px_15px_rgba(0,0,0,0.3)] flex items-center gap-2 cursor-pointer transition-transform active:scale-95 whitespace-nowrap z-20 text-sm">
@@ -822,6 +795,7 @@
         let dmDownsellTimer = null;
         let landingDownsellTimer = null;
         let userHasPaid = false;
+        let storyImageTimer;
         
         Object.keys(postsData).forEach(id => { postStates[id] = { liked: false, saved: false }; });
 
@@ -864,7 +838,6 @@
                 mediaContainer.classList.add('locked');
                 mediaContainer.onclick = () => document.getElementById('pacotes-section').scrollIntoView({behavior: 'smooth'});
                 
-                // Pega a imagem base correta de acordo com o post pra aplicar o blur
                 let bgImage = "https://pub-c737fc13f75b440d8a7a6655e86b4ead.r2.dev/SaveClip.App_766747932_17901220224518014_4001228363155235078_n.jpg";
                 if(postId === 'of-post-2') bgImage = "https://pub-c737fc13f75b440d8a7a6655e86b4ead.r2.dev/SaveClip.App_761878159_17899706349518014_8048954189402497979_n.jpg";
                 if(postId === 'of-post-3') bgImage = "https://pub-c737fc13f75b440d8a7a6655e86b4ead.r2.dev/SaveClip.App_764720265_17900232279518014_3113445674741697281_n.jpg";
@@ -886,16 +859,12 @@
         let isShift = false;
 
         function showCustomKeyboard(e) {
-            if(e) e.preventDefault(); // Impede focar nativamente e subir o teclado OS
+            if(e) e.preventDefault();
             
             const kb = document.getElementById('custom-keyboard');
             kb.classList.remove('h-0');
             kb.classList.add('h-[260px]');
             
-            const chatMain = document.getElementById('chat-main-container');
-            chatMain.style.paddingBottom = '340px';
-            
-            // Faz o scroll acompanhar a animação de abertura do teclado (350ms)
             let start = Date.now();
             function scrollStep() {
                 scrollToBottom();
@@ -911,11 +880,16 @@
             kb.classList.add('h-0');
             kb.classList.remove('h-[260px]');
             
-            const chatMain = document.getElementById('chat-main-container');
-            chatMain.style.paddingBottom = '80px';
+            let start = Date.now();
+            function scrollStep() {
+                scrollToBottom();
+                if(Date.now() - start < 350) {
+                    requestAnimationFrame(scrollStep);
+                }
+            }
+            scrollStep();
         }
 
-        // Esconde o teclado ao clicar fora
         document.addEventListener('DOMContentLoaded', () => {
             const chatMain = document.getElementById('chat-main-container');
             if(chatMain) chatMain.addEventListener('click', hideCustomKeyboard);
@@ -925,7 +899,7 @@
             const input = document.getElementById('dm-input');
             if (isShift) {
                 char = char.toUpperCase();
-                toggleShift(false); // Retorna pra minúsculo após uma letra igual iOS
+                toggleShift(false);
             }
             input.value += char;
             triggerInputEvent();
@@ -970,8 +944,14 @@
         }
 
         // ========================================================
-        // EXIT INTENT & SISTEMA DE DOWNSELL
+        // EXIT INTENT
         // ========================================================
+        function triggerDownsell() {
+            if (downsellTriggered || userHasPaid) return;
+            downsellTriggered = true;
+            clearTimeout(dmDownsellTimer);
+            clearTimeout(landingDownsellTimer);
+        }
 
         history.replaceState({ page: 'trap' }, '');
         history.pushState({ page: 'main' }, '');
@@ -1004,33 +984,9 @@
             }
         });
 
-        const downsellMessages = [
-            { type: 'text', content: "Ay amor, vi que te quedaste a medias 🥺" },
-            { type: 'text', content: "Se nota que tienes ganas... te haré una rebaja increíble solo por hoy." },
-            { type: 'video', content: "https://pub-c737fc13f75b440d8a7a6655e86b4ead.r2.dev/1_5042113862577423768.mp4", caption: null },
-            { type: 'text', content: "Te dejo mi pack más ardiente por solo <strong>$60 MXN</strong>. Mira arriba un pedacito de lo que te vas a perder si te vas 😈👇" }
-        ];
-
-        function triggerDownsell() {
-            if (downsellTriggered || userHasPaid) return;
-            downsellTriggered = true;
-            
-            clearTimeout(dmDownsellTimer);
-            clearTimeout(landingDownsellTimer);
-
-            if (currentView !== 'dm') {
-                showIGNotification("laurinhaofc", "Ay amor, vi que te quedaste a medias 🥺");
-            }
-
-            processBotQueue(downsellMessages, () => {
-                generateSPEIForDownsell();
-            });
-        }
-
         // ========================================================
-        // INÍCIO AUTOMÁTICO & SISTEMA DE NOTIFICAÇÃO DO INSTAGRAM
+        // INÍCIO AUTOMÁTICO & NOTIFICAÇÃO
         // ========================================================
-        
         function startAutoFlow() {
             if (autoFlowStarted) return;
             autoFlowStarted = true;
@@ -1072,10 +1028,6 @@
             hideIGNotification();
             openDM();
         }
-
-        // ========================================================
-        // FUNÇÕES PADRÕES (Interface)
-        // ========================================================
 
         function closeAllModals() {
             isModalOpen = false;
@@ -1542,29 +1494,58 @@
             isModalOpen = true;
             const modal = document.getElementById('video-modal');
             const vid = document.getElementById('story-video');
+            const img = document.getElementById('story-image');
             const progress = document.getElementById('story-progress');
             
             progress.style.width = '0%';
-            vid.src = url;
             modal.classList.remove('hidden');
             modal.classList.add('flex');
             
-            const playPromise = vid.play();
-            if (playPromise !== undefined) {
-                playPromise.catch(error => {
-                    vid.muted = true;
-                    vid.play();
-                });
-            }
+            if(typeof storyImageTimer !== 'undefined') clearInterval(storyImageTimer);
             
-            vid.ontimeupdate = () => {
-                if(vid.duration) {
-                    const percentage = (vid.currentTime / vid.duration) * 100;
-                    progress.style.width = percentage + '%';
+            const isVideo = url.toLowerCase().endsWith('.mp4') || url.toLowerCase().endsWith('.webm');
+            
+            if (isVideo) {
+                img.classList.add('hidden');
+                vid.classList.remove('hidden');
+                vid.src = url;
+                
+                const playPromise = vid.play();
+                if (playPromise !== undefined) {
+                    playPromise.catch(error => {
+                        vid.muted = true;
+                        vid.play();
+                    });
                 }
-            };
-            
-            vid.onended = closeVideo;
+                
+                vid.ontimeupdate = () => {
+                    if(vid.duration) {
+                        const percentage = (vid.currentTime / vid.duration) * 100;
+                        progress.style.width = percentage + '%';
+                    }
+                };
+                
+                vid.onended = closeVideo;
+            } else {
+                vid.classList.add('hidden');
+                vid.pause();
+                img.classList.remove('hidden');
+                img.src = url;
+                
+                let timeLeft = 0;
+                const totalTime = 50; 
+                
+                storyImageTimer = setInterval(() => {
+                    timeLeft++;
+                    const percentage = (timeLeft / totalTime) * 100;
+                    progress.style.width = percentage + '%';
+                    
+                    if (timeLeft >= totalTime) {
+                        clearInterval(storyImageTimer);
+                        closeVideo();
+                    }
+                }, 100);
+            }
         }
 
         function closeVideo() {
@@ -1575,7 +1556,8 @@
         function closeVideoSilent() {
             const modal = document.getElementById('video-modal');
             const vid = document.getElementById('story-video');
-            vid.pause();
+            if(vid) vid.pause();
+            if(typeof storyImageTimer !== 'undefined') clearInterval(storyImageTimer);
             modal.classList.add('hidden');
             modal.classList.remove('flex');
         }
